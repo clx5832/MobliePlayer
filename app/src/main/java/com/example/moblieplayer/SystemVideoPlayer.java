@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -53,6 +54,7 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
 
     //全屏播放
     private static final int FULL_SCREEN = 4;
+    private AudioManager am;
     //    @BindView(R.id.video_player)
 //    VideoView videoPlayer;
     @BindView(R.id.tv_name)
@@ -325,6 +327,8 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
     }
 
     public void initData() {
+        //实例化AudioManager
+         am = (AudioManager) getSystemService(AUDIO_SERVICE);
 
         //得到屏幕的宽和高
         //这个方法是过时的

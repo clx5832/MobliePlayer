@@ -176,4 +176,24 @@
 
 
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_light"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="亮度:"
+        android:visibility="gone"
+        android:textColor="#ffffff" />
+
+    <TextView
+        android:id="@+id/tv_show"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_toRightOf="@+id/tv_light"
+        android:padding="6dp"
+        android:text="5555"
+        android:visibility="gone"
+        android:textColor="#ffffff" />
 </RelativeLayout>

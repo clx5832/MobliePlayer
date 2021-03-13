@@ -11,8 +11,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Vibrator;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.GestureDetector;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -28,6 +31,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.moblieplayer.domain.MediaItem;
+
 import com.example.moblieplayer.utils.LogUtil;
 import com.example.moblieplayer.utils.Utils;
 import com.example.moblieplayer.view.VideoView2;
@@ -41,6 +45,16 @@ import butterknife.ButterKnife;
 
 //设置播放功能的类
 public class SystemVideoPlayer extends Activity implements View.OnClickListener {
+
+    //**********************************************************************
+//    public float startY;//记录手指按下的Y坐标
+//    public float startX;//记录手指按下的X坐标
+//    public int downVal;//记录手指按下的音量
+    public Vibrator vibrator;//手机振动器
+
+    //***********************************************************************
+    /*定义Screen类中的对象*/
+//    private Screen screen = new Screen(this);
     /*
      * 1.进度更新
      * */
@@ -127,6 +141,8 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
                     break;
 
                 case HIDEMEDIACONTROLLER://隐藏控制面板
+                    tv_light.setVisibility(View.GONE);
+                    tv_show.setVisibility(View.GONE);
                     hidemediaController();
                     break;
             }
@@ -141,10 +157,20 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
     private int screenHeight;//屏幕的高
 
     /*
-    * 视频本身的宽和高
-    * */
+     * 视频本身的宽和高
+     * */
     private int VideoHeight;
     private int VideoWidth;
+    //当前的音量，音量范围0-15
+    private int currentVolume;
+    //最大的音量
+    private int maxVolume;
+    private boolean isMute = false;
+    private float mBrightness;
+    private int intScreenBrightness;
+
+    private TextView tv_show;
+    private TextView tv_light;
 
     /*
      * 1.得到系统时间的方法
@@ -162,6 +188,8 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
         setContentView(R.layout.activity_system_player);
         ButterKnife.bind(this);
 
+        tv_show = findViewById(R.id.tv_show);
+        tv_light = findViewById(R.id.tv_light);
         video_player = findViewById(R.id.video_player);
         btnSwitchPlayer.setOnClickListener(this);
         btnVideoExit.setOnClickListener(this);
@@ -216,8 +244,8 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
             @Override
             public void onPrepared(MediaPlayer mp) {
                 //得到视频原始的宽和高
-                VideoHeight=  mp.getVideoHeight();
-                VideoWidth=mp.getVideoWidth();
+                VideoHeight = mp.getVideoHeight();
+                VideoWidth = mp.getVideoWidth();
 
                 //1.得到视频的总时长和SeekBar.setMax()；
                 int duration = video_player.getDuration();
@@ -253,6 +281,30 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
                 setNextPlay();
             }
         });
+
+        seekbarVoice.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+//                    seekbarVoice.setTO
+                    updateVolumeProgress(progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+                //设置控件消失的
+                handler.removeMessages(HIDEMEDIACONTROLLER);
+            }
+
+            //手离开触摸屏幕时
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+                handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
+            }
+        });
         seekbarVideo.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             /*
              * 1.当我们的进度更新的时候回调这个方法
@@ -284,6 +336,33 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
         });
     }
 
+    private void updateVolumeProgress(int volume) {
+        am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);//取消掉系统的声音控件的
+        seekbarVoice.setProgress(volume);
+        currentVolume = volume;
+        if (volume <= 0) {
+            isMute = true;
+        } else {
+            isMute = false;
+        }
+    }
+
+    /*
+     * 根据音量传入的值修改音量
+     * */
+    private void updateVolume(int volume) {
+
+        if (isMute) {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);//取消掉系统的声音控件的
+            seekbarVoice.setProgress(0);
+        } else {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);//取消掉系统的声音控件的
+            seekbarVoice.setProgress(volume);
+            currentVolume = volume;
+        }
+//        am.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 1);//显示系统的控件
+    }
+
 
     private void setVideoType(int type) {
 
@@ -297,8 +376,8 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
 
             case DEFAULT_SCREEN://默认的大小
                 /*
-                * 真实视频本身的宽和高
-                * */
+                 * 真实视频本身的宽和高
+                 * */
                 int mVideoWidth = VideoWidth;
                 int mVideoHeight = VideoHeight;
                 /*
@@ -308,7 +387,7 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
                 int height = screenHeight;
 
                 //进行等比例缩放的方法
-                if (mVideoWidth > 0 && mVideoHeight > 0){
+                if (mVideoWidth > 0 && mVideoHeight > 0) {
                     // for compatibility, we adjust size based on aspect ratio
                     if (mVideoWidth * height < width * mVideoHeight) {
                         //Log.i("@@@", "image too wide, correcting");
@@ -317,7 +396,7 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
                         //Log.i("@@@", "image too tall, correcting");
                         height = width * mVideoHeight / mVideoWidth;
                     }
-                    video_player.setVideoSize(width,height);
+                    video_player.setVideoSize(width, height);
                 }
 
                 btnVideoSwitchScreen.setBackgroundResource(R.drawable.btn_video_switch_full_screen_selector);
@@ -328,8 +407,16 @@ public class SystemVideoPlayer extends Activity implements View.OnClickListener 
 
     public void initData() {
         //实例化AudioManager
-         am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        am = (AudioManager) getSystemService(AUDIO_SERVICE);
+        //得到当前的音量
+        currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+        //得到最大音量
+        maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 
+        //设置声音的seekBar的最大值
+        seekbarVoice.setMax(maxVolume);
+        //设置默认值,即当前的进度
+        seekbarVoice.setProgress(currentVolume);
         //得到屏幕的宽和高
         //这个方法是过时的
 //        WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -368,9 +455,9 @@ screenHeight = displayMetrics . heightPixels;
             public boolean onDoubleTap(MotionEvent e) {
                 Toast.makeText(SystemVideoPlayer.this, "我被双击了", Toast.LENGTH_SHORT).show();
 
-                if (isFullScreen){
+                if (isFullScreen) {
                     setVideoType(DEFAULT_SCREEN);
-                }else {
+                } else {
                     setVideoType(FULL_SCREEN);
                 }
 //                if (isOnDoubleTap){
@@ -493,6 +580,187 @@ screenHeight = displayMetrics . heightPixels;
         LogUtil.v("onCreate", "A,onStart======================");
     }
 
+    //*****************************************************************************************
+//    @Override
+//    public boolean onTouchEvent(MotionEvent event) {
+//
+////        /*的到屏幕的宽和搞得方法*/
+////        DisplayMetrics displayMetrics = new DisplayMetrics();
+////        this.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+////        screenWidth = displayMetrics.widthPixels;
+////        screenHeight = displayMetrics.heightPixels;
+//
+//        /*
+//         * 得到声音的最大或者最小值
+//         * */
+////        //实例化AudioManager
+////        am = (AudioManager) getSystemService(AUDIO_SERVICE);
+////        //得到当前的音量
+////        currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+////        //得到最大音量
+////        maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+//        /*
+//         * 把事件传递给手势识别器
+//         * 对事件进行了解析处理，没有拦截，解析成手势识别的单击和双击
+//         * */
+//        detector.onTouchEvent(event);
+//
+//        switch (event.getAction()) {
+//
+//            case MotionEvent.ACTION_DOWN://手触碰到屏幕的时候
+//                startX = event.getX();//获取初始的位置
+//                startY = event.getY();
+//
+//                downVal = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+//                handler.removeMessages(HIDEMEDIACONTROLLER);
+////                showmediaController();
+//                break;
+//
+//            case MotionEvent.ACTION_MOVE://手势移动
+//                float endY = event.getY();
+//                float distanceY = startY - endY;//移动的距离=开始的减去后面
+//                int touchRang = Math.min(screenWidth, screenHeight);
+//                //判断
+//                if (startY > screenWidth / 2) {
+//
+//                    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+////                    2.得到新的x轴
+//               float endX = event.getX();
+//
+//                float distanceX = startX - endX;
+//                //2.来到新的坐标
+////                float endY = event.getY();
+//                //3.计算偏移量
+////                float distanceY = startY - endY;
+//                //4.屏幕滑动的距离： 总距离 =改变的声音：最大的音量
+//                float changeVolume =(distanceY / touchRang) *maxVolume;
+//                //5.最终的声音 = 原来的音量 + 改变的声音
+//                float endvolume = Math.min(Math.max(downVal + changeVolume,0),maxVolume);
+//
+//
+//                if (changeVolume !=0){
+//                    updateVolumeProgress((int) endvolume);
+//                }
+//                    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//                    //屏幕右半部分上滑，声音变大，下滑，声音变小
+//
+////                    int curvol = (int) (downVal + (distanceY / touchRang) * maxVolume);//考虑到横竖屏切换的问题
+////
+////                    int volume = Math.min(Math.max(0, curvol), maxVolume);
+////                    //更新声音
+////                    updateVolume(volume);
+//                } else {
+//                    //屏幕左半部分上滑，亮度变大，下滑亮度变小
+//                    final double FLING_MIN_DISTANCE = 0.5;//距离
+//                    final double FLING_MIN_VELOCITY = 0.5;//速度
+//                    /*Math.abs返回绝对值的意思
+//                     * */
+//                    if (distanceY > FLING_MIN_DISTANCE && Math.abs(distanceY) > FLING_MIN_VELOCITY) {
+//                        setBrightness(20);
+//                    }
+//                    if (distanceY < FLING_MIN_DISTANCE && Math.abs(distanceY) < FLING_MIN_VELOCITY) {
+//                        setBrightness(-20);
+//                    }
+//                }
+//                break;
+//
+//            case MotionEvent.ACTION_UP:
+//                handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
+//                break;
+//        }
+//        return super.onTouchEvent(event);
+//    }
+//
+
+    public void setBrightness(float brightness) {
+//        screenBrightness_check();//关闭系统自动调节的亮度
+//        //不让屏幕全暗
+//        if (brightness <= 1) {
+//            brightness = 1;
+//        }
+//        //设置当前activity的屏幕亮度
+//        WindowManager.LayoutParams lp = this.getWindow().getAttributes();
+//        //0到1,调整亮度暗到全亮
+//        lp.screenBrightness = Float.valueOf(brightness / 255f);
+//        this.getWindow().setAttributes(lp);
+//
+//        //保存为系统亮度方法1
+//        android.provider.Settings.System.putInt(getContentResolver(),
+//                android.provider.Settings.System.SCREEN_BRIGHTNESS,
+//                (int) brightness);
+
+        //保存为系统亮度方法2
+//        Uri uri = android.provider.Settings.System.getUriFor("screen_brightness");
+//        android.provider.Settings.System.putInt(getContentResolver(), "screen_brightness", brightness);
+//        // resolver.registerContentObserver(uri, true, myContentObserver);
+//        getContentResolver().notifyChange(uri, null);
+
+        //99999999999999999999999999999999999999999999999999999999999999999999999
+//        if (mBrightness < 0) {
+//            mBrightness = getWindow().getAttributes().screenBrightness;
+//            if (mBrightness <= 0.00f)
+//                mBrightness = 0.50f;
+//            if (mBrightness < 0.01f)
+//                mBrightness = 0.01f;
+//        }
+//        WindowManager.LayoutParams lpa = getWindow().getAttributes();
+//        lpa.screenBrightness = mBrightness + (endY - startY) / screenHeight;
+//        if (lpa.screenBrightness > 1.0f)
+//            lpa.screenBrightness = 1.0f;
+//        else if (lpa.screenBrightness < 0.01f)
+//            lpa.screenBrightness = 0.01f;
+//        getWindow().setAttributes(lpa);
+
+        //99999999999999999999999999999999999999999999999999999999999999999999999
+
+
+//        WindowManager.LayoutParams lp = getWindow().getAttributes();//获取窗口的属性
+//
+//        lp.screenBrightness = lp.screenBrightness + brightness / 255.0f;//得到的屏幕亮度 =得到的屏幕亮度 + 亮度/255.0f
+//        if (lp.screenBrightness > 1) {
+//
+//            lp.screenBrightness = 1;//设置屏幕为最亮的
+//            vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);//设置震动
+//
+//            long[] pattern = {10, 200};//OFF/ON/OFF/ON...关闭10秒震动200毫秒，不停切换
+//
+//            vibrator.vibrate(pattern, -1);//要添加权限
+//
+//        } else if (lp.screenBrightness < 0.2) {
+//            lp.screenBrightness = (float) 0.2;
+//
+//            vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);//设置震动
+//
+//            long[] pattern = {10, 200};//OFF/ON/OFF/ON...关闭10秒震动200毫秒，不停切换
+//
+//            vibrator.vibrate(pattern, -1);//要添加权限
+//        }
+//        getWindow().setAttributes(lp);
+
+        //0000000000000000000000000000000000000000000000000000000000000000
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = lp.screenBrightness + brightness / 255.0f;
+        if (lp.screenBrightness > 1) {
+            lp.screenBrightness = 1;
+        } else if (lp.screenBrightness < 0.0) {
+            lp.screenBrightness = (float) 0.0;
+        }
+        float sb = lp.screenBrightness;
+        tv_show.setText((int) Math.ceil(sb * 100) + "%");
+        getWindow().setAttributes(lp);
+        //0000000000000000000000000000000000000000000000000000000000000000
+    }
+
+    //******************************************************************************************
+    private float startY;
+    private float touchRang;//滑动距离
+    private int mVolume;//当前的音量
+    private float startX;
+    private float touchRangX;
+    private float distanceY;
+    private float endY;
+    private float endX;
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
@@ -501,8 +769,94 @@ screenHeight = displayMetrics . heightPixels;
         switch (event.getAction()) {
 
             case MotionEvent.ACTION_DOWN:
-//                Intent intent =new Intent(this, TestActivity.class);
-//                startActivity(intent);
+                //11111111111111111111111111111111111111111111111
+                startX = event.getX();
+                //111111111111111111111111111111111111111111111111
+
+                //1.按下时，记录初始值
+                startY = event.getY();
+
+
+                touchRang = Math.min(screenHeight, screenWidth);//滑动的距离
+                mVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                handler.removeMessages(HIDEMEDIACONTROLLER);
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+
+                endX = event.getX();
+                //*****************************************************************************
+                /*
+                * 实现视频进度快进的代码
+                * */
+                float distanceX = endX - startX;
+                float deltailX = (distanceX / screenWidth) * seekbarVideo.getMax();
+                deltailX = distanceX / 1;
+                int progress = (int) Math.min(Math.max(deltailX + seekbarVideo.getProgress(),0),seekbarVideo.getMax());
+                seekbarVideo.setProgress(progress);
+                video_player.seekTo(progress);
+                handler.removeMessages(HIDEMEDIACONTROLLER);
+                handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER,5000);
+//                tv_show.setVisibility(View.VISIBLE);
+//                tv_show.setText("进度："+progress);
+//                tv_light.setText("进度：");
+                showmediaController();
+                //*****************************************************************************
+
+                endY = event.getY();
+                //3.计算偏移量
+                distanceY = startY - endY;
+                if (startX > (screenWidth / 2)) {
+
+                    //原来的+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                    //
+//                //2.得到新的x轴
+//               float endX = event.getX();
+//
+////                float distanceX = startX - endX;
+                    //2.来到新的坐标
+
+                    //4.屏幕滑动的距离： 总距离 =改变的声音：最大的音量
+                    float changeVolume = (distanceY / touchRang) * maxVolume;
+                    //5.最终的声音 = 原来的音量 + 改变的声音
+                    float endvolume = Math.min(Math.max(mVolume + changeVolume, 0), maxVolume);
+
+
+                    if (changeVolume != 0) {
+                        updateVolumeProgress((int) endvolume);
+                    }
+                    //原来的+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                    //添加的********************************************************************
+                } else {
+
+
+                    tv_light.setVisibility(View.VISIBLE);
+                    tv_show.setVisibility(View.VISIBLE);
+                    //屏幕左半部分上滑，亮度变大，下滑亮度变小
+                    final double FLING_MIN_DISTANCE = 0.5;//距离
+                    final double FLING_MIN_VELOCITY = 0.5;//速度
+                    /*Math.abs返回绝对值的意思
+                     * */
+                    if (distanceY > FLING_MIN_DISTANCE && Math.abs(distanceY) > FLING_MIN_VELOCITY) {
+                        setBrightness(20);
+                    }
+                    if (distanceY < FLING_MIN_DISTANCE && Math.abs(distanceY) > FLING_MIN_VELOCITY) {
+                        setBrightness(-20);
+                    }
+
+                    //88888888888888888888888888888888888888888888888888888888888888888888888888888
+
+
+                    //88888888888888888888888888888888888888888888888888888888888888888888888888888
+
+                }
+                //添加的********************************************************************
+                break;
+
+            case MotionEvent.ACTION_UP:
+
+                handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
                 break;
         }
         return super.onTouchEvent(event);
@@ -511,29 +865,31 @@ screenHeight = displayMetrics . heightPixels;
     @Override
     public void onClick(View v) {
         if (v == btnVoice) {
-// Handle clicks for btnVoice
+            isMute = !isMute;
+            updateVolume(currentVolume);
+            // Handle clicks for btnVoice
         } else if (v == btnSwitchPlayer) {
-// Handle clicks for btnSwitchPlayer
+            // Handle clicks for btnSwitchPlayer
         } else if (v == btnVideoExit) {
             finish();
-// Handle clicks for btnVideoExit
+            // Handle clicks for btnVideoExit
         } else if (v == btnVideoPre) {
-// Handle clicks for btnVideoPre
+            // Handle clicks for btnVideoPre
             setPrePlay();
         } else if (v == btnVideoStartPause) {
 
             startAndPause();
-// Handle clicks for btnVideostartPause
+            // Handle clicks for btnVideostartPause
         } else if (v == btnVideoNext) {
-// Handle clicks for btnVideoNext
+            // Handle clicks for btnVideoNext
             setNextPlay();
         } else if (v == btnVideoSwitchScreen) {
-            if (isFullScreen){
+            if (isFullScreen) {
                 setVideoType(DEFAULT_SCREEN);
-            }else {
+            } else {
                 setVideoType(FULL_SCREEN);
             }
-// Handle clicks for btnvideoswi tchScreen
+            // Handle clicks for btnvideoswi tchScreen
         }
         handler.removeMessages(HIDEMEDIACONTROLLER);
         handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
@@ -636,8 +992,54 @@ screenHeight = displayMetrics . heightPixels;
             btnVideoNext.setEnabled(false);//设置按钮不可点击
             btnVideoNext.setBackgroundResource(R.drawable.videonextbtn_bg);
 
+
         } else {
             Toast.makeText(SystemVideoPlayer.this, "没有播放地址", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /*
+     * 这个是关掉系统自动调节亮度的方法
+     * */
+    private void screenBrightness_check() {
+        //先关闭系统的亮度自动调节
+        try {
+            if (android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE) == android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC) {
+                android.provider.Settings.System.putInt(getContentResolver(),
+                        android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE,
+                        android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+            }
+        } catch (Settings.SettingNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        //获取当前亮度,获取失败则返回255
+        intScreenBrightness = (int) (android.provider.Settings.System.getInt(getContentResolver(),
+                android.provider.Settings.System.SCREEN_BRIGHTNESS,
+                255));
+
+    }
+
+    //设置手机音量摁键控件调节音量变化
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+
+            currentVolume--;
+            updateVolumeProgress(currentVolume);
+            showmediaController();
+            handler.removeMessages(HIDEMEDIACONTROLLER);
+            handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
+            return true;//一定要写，不然出现系统同时执行，自己也执行，返回true不让系统的弹出来
+        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            currentVolume++;
+            updateVolumeProgress(currentVolume);
+            showmediaController();
+            handler.removeMessages(HIDEMEDIACONTROLLER);
+            handler.sendEmptyMessageDelayed(HIDEMEDIACONTROLLER, 5000);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 }

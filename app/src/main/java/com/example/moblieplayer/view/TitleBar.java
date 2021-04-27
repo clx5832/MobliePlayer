@@ -1,6 +1,7 @@
 package com.example.moblieplayer.view;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -9,6 +10,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 
 import com.example.moblieplayer.R;
+import com.example.moblieplayer.activity.JinRiTouTiaoSearchAcitivity;
 
 public class TitleBar extends LinearLayout {
     private final Context context;
@@ -43,7 +45,10 @@ public class TitleBar extends LinearLayout {
             switch (v.getId()) {
 
                 case R.id.tv_search:
-                    Toast.makeText(context, "搜索", Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(context, "搜索", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent();
+                    intent.setClass(context, JinRiTouTiaoSearchAcitivity.class);
+                    context.startActivity(intent);
                     break;
 
                 case R.id.rl_game:

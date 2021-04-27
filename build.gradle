@@ -2,23 +2,34 @@
 
 buildscript {
     repositories {
+        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
         google()
+
+        maven{ url'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
         jcenter()
         
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:3.5.2'
+//        classpath 'com.android.tools.build:gradle:3.5.3'
+//        classpath 'com.android.tools.build:gradle:3.5.4'
 //        classpath 'com.jakewharton:butterknife-gradle-plugin:9.0.0'  //添加这一行
 //        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
+
+
     }
 }
 
 allprojects {
     repositories {
         google()
+        maven{ url'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+        //必须写在JCenter上边
         jcenter()
+        maven { url "https://jitpack.io" }
+        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
         
     }
 }

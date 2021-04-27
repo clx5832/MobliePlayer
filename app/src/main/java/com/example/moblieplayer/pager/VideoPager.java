@@ -4,7 +4,6 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -15,7 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
-import android.widget.ListAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -23,7 +22,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.example.moblieplayer.R;
-import com.example.moblieplayer.SystemVideoPlayer;
+import com.example.moblieplayer.activity.SystemVideoPlayer;
 import com.example.moblieplayer.base.BasePager;
 import com.example.moblieplayer.domain.MediaItem;
 import com.example.moblieplayer.utils.Utils;
@@ -52,7 +51,7 @@ public class VideoPager extends BasePager {
     public VideoPager(Context context) {
 
         super(context);
-        this.context =context;
+        this.context = context;
 
         utils = new Utils();
     }
@@ -72,7 +71,7 @@ public class VideoPager extends BasePager {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-                MediaItem mediaItem=mediaItems.get(position);
+                MediaItem mediaItem = mediaItems.get(position);
 
                 //隐式意图，通过匹配调用合适的Activity
 //                Intent intent=new Intent(context, SystemVideoPlayer.class);
@@ -82,12 +81,12 @@ public class VideoPager extends BasePager {
 //                intent.setDataAndType(Uri.parse(mediaItem.getData()),"video/*");
 //                context.startActivity(intent);
 
-                Intent intent=new Intent(context, SystemVideoPlayer.class);
+                Intent intent = new Intent(context, SystemVideoPlayer.class);
 //                intent.setDataAndType(Uri.parse(mediaItem.getData()),"video/*");
                 Bundle bundle = new Bundle();
-                bundle.putSerializable("videolist",mediaItems);
+                bundle.putSerializable("videolist", mediaItems);
                 intent.putExtras(bundle);
-                intent.putExtra("position",position);
+                intent.putExtra("position", position);
                 context.startActivity(intent);
 
 
@@ -119,70 +118,72 @@ public class VideoPager extends BasePager {
     public void getData() {
 
         //子线程
-        new Thread(){
+        new Thread() {
 
             @Override
             public void run() {
                 super.run();
 
                 SystemClock.sleep(3000);//系统时钟睡眠2秒(这里是子线程)
-                mediaItems =new ArrayList<MediaItem>();
+                mediaItems = new ArrayList<MediaItem>();
 
                 ContentResolver contentResolver = context.getContentResolver();
 //                Uri uri = Uri.parse("content://media/external/video/media/");
-                String[] s ={
+                String[] s = {
                         MediaStore.Video.Media.DISPLAY_NAME,//视频的名称
                         MediaStore.Video.Media.DURATION,//视频总时长
                         MediaStore.Video.Media.SIZE,//视频的大小
                         MediaStore.Video.Media.DATA//视频的绝对地址
 
                 };
-              Cursor cursor =  contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,s,null,null,null);
+                Cursor cursor = contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, s, null, null, null);
 
-              if (cursor !=null){
+                if (cursor != null) {
 
-                  while (cursor.moveToNext()){
+                    while (cursor.moveToNext()) {
 
-                      MediaItem mediaItem =new MediaItem();
+                        MediaItem mediaItem = new MediaItem();
 
-                      String name =cursor.getString(0);
-                      mediaItem.setName(name);
+                        String name = cursor.getString(0);
+                        mediaItem.setName(name);
 
-                      long duration=cursor.getLong(1);
-                      mediaItem.setDuration(duration);
+                        long duration = cursor.getLong(1);
+                        mediaItem.setDuration(duration);
 
-                      long size =cursor.getLong(2);
-                      mediaItem.setSize(size);
+                        long size = cursor.getLong(2);
+                        mediaItem.setSize(size);
 
-                      String data =cursor.getString(3);
-                      mediaItem.setData(data);
+                        String data = cursor.getString(3);
+//                        String data = "http://newscncc.v.wscdns.com/live/newscctv13_1/index.m3u8?contentid=2820180516001";
+//                      String data ="https://www.bilibili.com/video/BV1J54y117tr?from=articleDetail";
+                        mediaItem.setData(data);
 
-                    mediaItems.add(mediaItem);
+                        mediaItems.add(mediaItem);
 
-                  }
-                  cursor.close();
-              }
+                    }
+                    cursor.close();
+                }
 
                 handler.sendEmptyMessage(0);
             }
         }.start();
-        handler =new Handler(){
+        handler = new Handler() {
 
             @Override
             public void handleMessage(@NonNull Message msg) {
                 super.handleMessage(msg);
 
-                if (msg.what == 0){
+                if (msg.what == 0) {
 
                     //如果数组表中不为空
-                    if (mediaItems !=null &&mediaItems.size() > 0){
+                    if (mediaItems != null && mediaItems.size() > 0) {
 
                         tv_nomedia.setVisibility(View.GONE);
                         pb_loading.setVisibility(View.GONE);
 
-                        lv_video_pager.setAdapter(new VideoPagerAdapatr() );
+                        lv_video_pager.setAdapter(new VideoPagerAdapatr());
 
-                    }else {
+                    } else {
                         tv_nomedia.setVisibility(View.VISIBLE);
                         pb_loading.setVisibility(View.GONE);
                     }
@@ -210,31 +211,35 @@ public class VideoPager extends BasePager {
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
 
-           viewHolder = new ViewHolder();
+            viewHolder = new ViewHolder();
 
-            if (convertView == null){
-                convertView =View.inflate(context,R.layout.video_pager_item,null);
-                viewHolder.tv_name =convertView.findViewById(R.id.tv_name);
-                viewHolder.tv_duration=convertView.findViewById(R.id.tv_duration);
-                viewHolder.tv_size=convertView.findViewById(R.id.tv_size);
+            if (convertView == null) {
+                convertView = View.inflate(context, R.layout.video_pager_item, null);
+
+                viewHolder.tv_name = convertView.findViewById(R.id.tv_name);
+                viewHolder.tv_duration = convertView.findViewById(R.id.tv_duration);
+                viewHolder.tv_size = convertView.findViewById(R.id.tv_size);
                 convertView.setTag(viewHolder);
-            }else {
-               viewHolder = (ViewHolder) convertView.getTag();
+            } else {
+                viewHolder = (ViewHolder) convertView.getTag();
             }
 
             System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            MediaItem mediaItem =mediaItems.get(position);
+            MediaItem mediaItem = mediaItems.get(position);
             viewHolder.tv_name.setText(mediaItem.getName());
-            viewHolder.tv_size.setText(Formatter.formatFileSize(context,mediaItem.getSize()));
+            viewHolder.tv_size.setText(Formatter.formatFileSize(context, mediaItem.getSize()));
             viewHolder.tv_duration.setText(utils.stringForTime((int) mediaItem.getDuration()));
-            System.out.println(utils.stringForTime((int) mediaItem.getDuration())+"++++++++++++++++++++++++++++++++++++++++++++");
+
+            System.out.println(utils.stringForTime((int) mediaItem.getDuration()) + "++++++++++++++++++++++++++++++++++++++++++++");
             return convertView;
         }
 
 
     }
-    static class ViewHolder{
 
+    static class ViewHolder {
+
+        ImageView iv_icon;
         TextView tv_name;
         TextView tv_duration;
         TextView tv_size;
@@ -333,7 +338,7 @@ public class VideoPager extends BasePager {
 
 //                handler.sendEmptyMessage(0);
 
-            }
+}
 
 //        }.start();
 //

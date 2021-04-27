@@ -15,4 +15,9 @@
 
     <include layout="@layout/media_controller" />
 
+    <include layout="@layout/loading"/>
+
+    <include layout="@layout/buffer"/>
+
+
 </RelativeLayout>

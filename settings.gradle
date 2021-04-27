@@ -1,2 +1,3 @@
-include ':app', ':startallvideoplayer'
-rootProject.name='MobliePlayer'
+include ':app', ':startallvideoplayer', ':speech', ':mytextspeech',
+        rootProject.name = 'MobliePlayer', 'Vitamio_example', 'Vitamio_Library', ':xutils', ':binderService', ':tryEventBus_simple', ':tryEventBus2', ':AndroidxianshipingputiaodongDemo', ':speechDemo', ':speechdemo2', ':voicedialog', ':jcvideoplayer-lib'
+include ':xListView'
